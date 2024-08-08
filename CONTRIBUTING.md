@@ -11,17 +11,23 @@ For style and formatting guidance, see:
 * [Content style guide](contributing/content-style.md)
 * [Markup reference](contributing/markup-format.md)
 
+The docs are generally structured based on the [Diátaxis framework](https://diataxis.fr/).
+For how that structure is applied to different types of docs in this project, see the [templates](docs/templates).
 
 ## Table of contents
 
-- [Adding pages](#adding-pages)
-  - [Adding security reports](#adding-security-reports)
-- [Commit messages](#commit-messages)
-- [Review process](#review-process)
+- [Contributing to the Platform.sh user documentation](#contributing-to-the-platformsh-user-documentation)
+  - [Table of contents](#table-of-contents)
+  - [Adding new pages](#adding-new-pages)
+    - [Adding security reports](#adding-security-reports)
+  - [Commit messages](#commit-messages)
+  - [Review process](#review-process)
+    - [Review comment style](#review-comment-style)
+    - [Checks](#checks)
 
-## Adding pages
+## Adding new pages
 
-To get a head start on your page, copy one of the [templates](/docs/templates).
+To get a head start on your page, copy one of the [templates](docs/templates).
 
 All file names should end in `.md`.
 They should be all lowercase
@@ -57,38 +63,25 @@ which means it contains buttons linking to all pages in its directory.
 To override this and include content from the `_index.md` file itself,
 set the `layout` to `single` in the [front matter](contributing/markup-format.md#front-matter).
 
-### Adding security reports
+## Redirect pages
 
-To add a security transparency report for a new year (after receiving the data):
+You sometimes need to move pages around to new locations.
+To keep links from other sites working, set up redirects from the old URL to the new one.
 
-1. Copy the tables from the previous year:
+Although Hugo has a built-in `aliases` property for this purpose,
+it uses meta refresh tags and so you shouldn't use it.
+Instead, prefer redirects that return 301 codes (Moved Permanently).
 
-   ```bash
-   cp -R docs/layouts/shortcodes/tranparency-reports/tables/2020/ docs/layouts/shortcodes/tranparency-reports/tables/2021
-   ```
-1. Copy the template from the previous year:
-
-   ```bash
-   cp docs/src/security/transparency/2020_report.md docs/src/security/transparency/2021_report.md
-   ```
-1. Update instances of the year in the new `.md` file:
-
-   * In the front matter (`title`, `sidebarTitle`, and `file`)
-   * In all shortcodes
-1. Run the docs locally and navigate to the new page _using Firefox_.
-1. Print the page as a PDF and save in `docs/static/files/reports/transparency-abuse/`.
-
-   Save the file as `<YEAR>_platformsh_transparency_report.pdf` (replacing `<YEAR>` with the current year).
-
-The report text is in `docs/data/transparency-reports.yaml`.
+Set them up in the [Platform.sh routes configuration](./.platform/routes.yaml).
+For more information, see how to [redirect routes](https://docs.platform.sh/define-routes/redirects.html).
 
 ## Commit messages
 
 To help understand why changes happened and not repeat work already done,
-we want to keep a meaningful history of changes to the project.
-This means we ask you to use meaningful commit messages (not just `Updated file.md`).
+the aim is to keep a meaningful history of changes to the project.
+This means you should use meaningful commit messages (not just `Updated file.md`).
 
-The pattern we use is:
+The pattern for the project is:
 
 ```txt
 :GITMOJI: Verb + action
@@ -122,3 +115,70 @@ We generally review for:
 To speed the process along, we may merge small changes such as spelling and formatting
 into your branch.
 Otherwise, we make suggestions and work with you to finalize the changes.
+<!-- vale Platform.first-person = YES -->
+
+### Review comment style
+
+To make comments clearer, each comment should have an emoji label describing its purpose.
+The following labels are primarily used:
+
+| Emoji | `:code:`              | Meaning      | Can merge  | Description |
+| ----- | --------------------- | ------------ | ---------- | ----------- |
+| 😍    | `:heart_eyes:`        | Praise       | ▶️          | Used when something is well done. No further action required. Should be at least one of these for each review. |
+| ⛏️    | `:pick:`              | Nitpick      | ▶️          | For small details based on preferences. |
+| 🛠️    | `:hammer_and_wrench:` | Suggestion   | 🚫         | To indicate a specific idea for improvement. By default, the suggestion needs to be accepted or otherwise addressed before merging. |
+| 💅    | `:nail_care:`         | Polish       | ▶️          | To indicate a specific idea for improvement that isn't fixing something wrong, but just pointing out ways to improve quality. |
+| 📋    | `:clipboard:`         | To-do        | 🚫         | For small, necessary changes, such as fixing typos. |
+| 🐞    | `:lady_beetle:`       | Issue        | 🚫         | To highlight a specific issue that needs to be fixed. Can be paired with a suggestion if a solution is known. |
+| ❓    | `:question:`          | Question     | 🚫         | For potential concerns that may not be relevant or for areas that aren't completely clear. By default, requires a response. |
+
+The following labels are also possible:
+
+| Emoji | `:code:`              | Meaning      | Can merge  | Description |
+| ----- | --------------------- | ------------ | ---------- | ----------- |
+| 💡    | `:bulb:`              | Thought      | ▶️          | To introduce an idea that came up from reviewing. More general than a suggestion and not focused on the details. Doesn't block merging by default, but can lead to more discussion. |
+| 🧹    | `:broom:`             | Chore        | 🚫         | For small process tasks that need to be done before merging. |
+
+The following decorations can be added for further clarification (to override default of blocking or not):
+
+| Emoji | `:code:`          | Meaning      | Description |
+| ----- | ----------------- | ------------ | ----------- |
+| ⏸️    | `:pause_button:`  | Blocking     | Used to indicate that the comment blocks merging. |
+| ▶️     | `:arrow_forward:` | Non-blocking | Used to indicate that the comment doesn't block merging. |
+
+The pattern is based on [conventional comments](https://conventionalcomments.org/).
+It uses emoji other than the ones for [commit messages](#commit-messages).
+
+### Checks
+
+To ensure the docs work smoothly, a few checks run on each pull request:
+
+- Vale enforces the [style guidelines](./contributing/content-style.md).
+
+- [`htmltest`](https://github.com/wjdp/htmltest) to check that all internal links in the built site are valid
+  (including whether linked headers exist).
+  Any errors in links to external sites are found in the regular check of all links.
+
+  To run this check locally, run the following commands:
+
+  ```bash
+  # Download the htmltest tool
+  curl https://htmltest.wjdp.uk | bash
+  # If you haven't done so, install dependencies
+  npm install
+  # Generate necessary files
+  npm run dev
+  npm run build:search
+  # Build HTML pages to check
+  hugo
+  # Build production JavaScript and CSS files
+  npm run build:assets
+  # Run the check
+  ./bin/htmltest
+  ```
+
+- Custom workflows [check all changed files](./.github/workflows/get-pr-info.yaml) within `docs/src`
+  and [comment with links](./.github/workflows/comment-on-pr.yaml) to the deployed pages for review.
+
+Outside of pull requests, twice a week [Muffet](https://github.com/raviqqe/muffet)
+checks if all links on the site are valid.

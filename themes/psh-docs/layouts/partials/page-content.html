@@ -1,0 +1,109 @@
+<!-- Page banners -->
+{{ if ( eq (string .context.Site.Params.vendor.config.version) "1" )}}
+{{ partial "banners/banner.html" .context }}
+{{ else if and ( ne (string .context.Page.Params.banner.type) "tiered-feature" ) ( ne (string .context.Page.Params.banner.type) "observability-suite" )}}
+{{ partial "banners/banner.html" .context }}
+{{ end }}
+
+<!-- Tier-gated features -->
+{{ if eq (string .Site.Params.vendor.config.version) "1"}}
+{{ partial "tiered-features/banner.html" .context }}
+{{ end }}
+
+<!-- If the feature is part of the Observability Suite -->
+{{ if eq (string .Site.Params.vendor.config.version) "1"}}
+{{ partial "observability-suite/banner.html" .context }}
+{{ end }}
+
+<!-- If the feature is in beta -->
+{{ partial "beta-flag/banner.html" .context }}
+
+{{ if ne .context.Params.editPage false }}
+  {{ partial "editpagebutton.html" .context }}
+{{ end }}
+
+<!-- Page title -->
+{{ if ne .context.Params.showTitle false }}
+<h1 class="font-black text-2xl mb-8 xl:text-4xl">{{ .context.Title | .context.RenderString }}</h1>
+{{ end }}
+
+<div class="grid md:grid-cols-80-20 md:gap-4 print:block">
+  
+  <div class="print:hidden max-w-[92vw] md:max-w-none md:order-2 md:top-24 md:sticky md:max-h-fullv md:overflow-y-auto border-t border-stone">
+    <!-- Table of contents -->
+    {{ if and (ne .context.Params.toc false) (ne .context.TableOfContents "<nav id=\"TableOfContents\"></nav>") }}
+      <div class="border border-stone border-t-0 px-6 pt-1 pb-4 mb-8 md:mb-0 text-sm [&_a]:text-skye-dark hover:[&_a]:underline focus:[&_a]:underline [&_ul_ul]:pl-4">
+        
+        {{ if not .context.Page.IsHome }}
+        <h3 class="pt-4 pb-2 font-light text-base text-slate"><a href="/">Back to home</a></h3>
+        {{ end }}
+
+        <h3 class="pt-4 pb-2 font-light text-base text-slate">On this page</h3>
+        {{ .context.TableOfContents }}
+      </div>
+    {{ end }}
+
+    <!-- Feedback form for wide screens -->
+    {{ if ne .context.Params.feedback false }}
+    <div class="print:hidden hidden md:block">
+      {{ partial "feedback/form" }}
+    </div>
+    {{ end }}
+
+    <!-- Sign up -->
+    {{ if .context.Site.Params.vendor.recruit.active }}
+      {{ if .context.Page.IsHome }}
+      <div><br/></div>
+      {{ end }}
+      
+      <div class="recruit-banner bg-skye-light border-stone border-t-0 px-6 pt-1 pb-4 mb-8 md:mb-0 text-sm [&_a]:text-skye-dark hover:[&_a]:underline focus:[&_a]:underline [&_ul_ul]:pl-4">
+        {{ $recruitment := .context.Site.Params.vendor.recruit }}
+        <h3 class="pt-4 pb-2 font-light text-base text-slate">{{ index $recruitment "title" }}</h3>
+        <p>{{ index $recruitment "description" | safeHTML }}</p>
+        <p><a href="{{ index $recruitment "link" }}">{{ index $recruitment "cta" }}</a></p>
+
+      </div>
+    {{ end }}
+
+  </div>
+
+  <div class="prose xl:prose-lg max-w-[96vw] md:max-w-none prose-code:!mb-0 prose-h2:text-xl prose-h3:text-xl prose-h4:text-lg">
+    <!-- Add the stack picker for Get started section -->
+    {{ if and ( eq .context.Section "get-started" ) ( ne .context.Title "Introduction" ) }}
+      {{ if eq $.Site.Params.vendor.name "Platform.sh" }}
+        {{ partial "get-started/stack-picker" }}
+      {{ end }}
+    {{ end }}
+
+    <!-- Page content, anchorized -->
+    {{ partial "headline-hash.html" .context.Content }}
+
+    <!-- If the page is a list page, add section cards -->
+    {{ if .isList }}
+      {{ range .context.Pages }}
+        <button onclick="location.href = '{{ .RelPermalink }}';" class="block text-left mb-7 p-8 text-primary-darker border-l-4 border-skye-dark hover:no-underline bg-stone hover:bg-skye-dark hover:text-white focus:bg-skye-dark focus:text-white hover:cursor-pointer [&:hover_a]:text-snow [&:focus_a]:text-snow [&:hover_a]:font-extrabold [&:focus_a]:font-extrabold">
+          <span class="block font-bold mb-4">{{ if isset .Params "sidebartitle" }}{{ .Params.sidebarTitle | .RenderString }}{{ else }}{{ .Title | .RenderString }}{{ end }}</span>
+          <span class="block">{{ .Params.description | .RenderString }}</span>
+        </button>
+      {{ end }}
+    {{ end }}
+
+    {{ if .context.Params.related }}
+    <div class="related-content">
+      <h3>Related content</h3>
+        <ul>
+          {{ range .context.Params.related }}
+            <li><a href="{{ .url }}" target="_blank">{{ .title }}</a></li>
+          {{ end }}
+        </ul>
+    </div>
+    {{ end }}
+
+  </div>
+
+</div>
+
+<!-- Feedback form for narrow screens -->
+<div class="print:hidden block md:hidden">
+  {{ partial "feedback/form" }}
+</div>

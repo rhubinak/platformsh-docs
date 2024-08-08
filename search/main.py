@@ -4,6 +4,11 @@ import json
 import meilisearch
 from platformshconfig import Config
 
+import sys
+
+docs_index_name = sys.argv[1]
+
+
 class Search:
     def __init__(self):
         self.default = {
@@ -14,20 +19,23 @@ class Search:
 
         self.scrape_dir = "output"
         self.scrape_config = "config/scrape.json"
-        self.docs_index = "docs"
+        self.docs_index = "{0}_docs".format(docs_index_name)
         self.primaryKey = "documentId"
-        self.index_name = "Docs"
+        self.index_name = "Docs ({0})".format(docs_index_name)
 
         # Below are Platform.sh custom settings for how the search engine functions.
 
         # Data available to the dropdown React app in docs, used to fill out autocomplete results.
-        self.displayed_attributes = ['title', 'text', 'url', 'site', 'section']
+        self.displayed_attributes = ['keywords', 'title', 'text', 'url', 'site', 'section']
         # Data actually searchable by our queries.
-        self.searchable_attributes = ['title', 'text', 'url', 'section']
+        self.searchable_attributes = ['keywords', 'title', 'pageUrl', 'section', 'text', 'url']
 
-        # Show results for one query with the listed pages, when they by default would not show up as best results. Note: these
-        # are not automatically two-way, so that's why they all appear to be defined twice.
+        # Show results for one query with the listed pages, when they by default would not show up as best results.
+        # Note: these aren't automatically two-way, which is why they're all defined twice.
         self.synonyms = {
+            "cron": ["crons"],
+            "crons": ["cron tasks", "cron jobs"],
+            "e-mail": ["email"],
             "routes.yaml": ["routes"],
             "routes": ["routes.yaml"],
             "services": ["services.yaml"],
@@ -41,21 +49,22 @@ class Search:
             "public ip addresses": ["regions"],
             "ssl": ["https", "tls"],
             "https": ["ssl"],
+            "auth": ["authentication", "access control"], # Only needs to be one way since we don't use "auth" in the docs
         }
 
         # Ranking rules:
         #
-        #   - Default order: ["typo", "words", "proximity", "attribute", "wordsPosition", "exactness"]
+        #   - Default order: ["words", "typo", "proximity", "attribute", "sort", "exactness"]
         #
-        #   - typo: fewer typos > more typos
         #   - words: number of times query is in document (greater number gets priority)
+        #   - typo: fewer typos > more typos
         #   - proximity: smaller distance between multiple occurences of query in same document > larger distances
         #   - attribute: sorted according to order of importance of attributes (searchable_attributes). terms in
         #       more important attributes first.
-        #   - wordsPosition: query terms earlier in document > later in document
+        #   - sort: queries are sorted at query time
         #   - exactness: similarity of matched words in document with query
 
-        self.ranking_rules = ["asc(rank)", "attribute", "typo", "words", "proximity", "wordsPosition", "exactness"]
+        self.ranking_rules = ["rank:asc", "exactness", "attribute", "proximity", "typo", "words"]
 
         self.updated_settings = {
             "rankingRules": self.ranking_rules,
@@ -63,7 +72,8 @@ class Search:
             "displayedAttributes": self.displayed_attributes
         }
 
-        self.distinct_attribute = "url"
+        # Group results by page
+        self.distinct_attribute = "pageUrl"
 
     def getConnectionString(self):
         """
@@ -93,7 +103,7 @@ class Search:
         """
         Cycle through the individual site indexes in /outputs so their individual documents can be added to Meilisearch.
         """
-        documents = [f for f in glob.glob("{}/*.json".format(self.scrape_dir))]
+        documents = [f for f in glob.glob("{0}/{1}_*.json".format(self.scrape_dir, docs_index_name))]
         for doc in documents:
             self.add(doc, index)
 
@@ -114,10 +124,22 @@ class Search:
 
         # Delete previous index
         if len(client.get_indexes()):
-            client.get_index(self.docs_index).delete()
+            client.index(self.docs_index).delete()
 
         # Create a new index
-        index = client.create_index(uid=self.docs_index, options={'primaryKey': self.primaryKey, 'name': self.index_name})
+        create_index_task = client.create_index(uid=self.docs_index, options={'primaryKey': self.primaryKey, 'uid': self.index_name})
+
+        timeout = 10000
+        if "friday" == docs_index_name:
+          timeout = 15000
+
+        try:
+          client.wait_for_task(create_index_task['taskUid'], timeout)
+        except meilisearch.errors.MeilisearchTimeoutError as merror:
+          print('Failed waiting {0} milliseconds for Meilisearch to create the index. Error message: {1}'.format(timeout, merror))
+          return
+
+        index = client.get_index(create_index_task['indexUid'])
 
         # Add synonyms for the index
         index.update_synonyms(self.synonyms)
